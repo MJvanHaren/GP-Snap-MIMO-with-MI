@@ -1,7 +1,6 @@
-function [G,fn] = ModelFlexiblePlateFirstPrinciple(Cmatrix,grids)
+function [G,fn] = ModelFlexiblePlateFirstPrinciple(Cmatrix,grids,a,b)
 %% prperties
-a = 0.25;
-b = 0.25;                                                     
+                                                    
 E = 2.1e11;                                                                
 rho = 7850;                                                                  
 nu = 0.285;
@@ -59,7 +58,7 @@ omega = sqrt(abs(omega2));
 %% bode calcs with Wodek
 
 no = grids^2;
-if false
+if false %MISO
     B = [[1;zeros(no-1,1)] [zeros(grids-1,1);1;zeros(no-grids,1)] [zeros(no-grids,1);1;zeros(grids-1,1)] [zeros(no-1,1);1]];
     Xnx(:,1) = reshape(Xm(:,2)*Yn(:,2)',[],1);
     Xnx(:,2) = reshape(Xm(:,2)*Yn(:,3)',[],1);
@@ -87,7 +86,7 @@ Cm = C*Phi;
 
 %% iterating over modes and positions to determine Gy and Gz
 s = tf('s');
-if false
+if false %MISO
     G(1,1)=1/(mass*s^2);
     G(1,2)=1/(mass*s^2);
     G(1,3)=1/(mass*s^2);
