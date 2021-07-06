@@ -27,10 +27,10 @@ xTest = [xv(:) yv(:)];
 
 %%
 Ts = 1e-3;
-N_trial = 16;
+N_trial = 8;
 [ty,ddy] = make4(5e-4,1e-3,1e-2,2.5e-1,2e1,Ts); % good choice: 5e-4,1e-3,1e-2,2.5e-1,2e1
 [~,t,s,j,a,v,r,~] = profile4(ty,ddy(1),Ts);
-Psi = [a s];
+Psi = [v a j s];
 npsi = size(Psi,2);
 theta0 = zeros(npsi,1);
 
@@ -43,9 +43,9 @@ meanfunc = {@meanZero};
 covfunc = {@covSEard};
 likfunc = {@likGauss};
 
-Y = theta(2,:)';
-hypGuess = struct('mean',[], 'cov', [3e0 3e0 log(mean(abs(Y)))], 'lik', log(1e-9));
-hypOpt = minimize(hypGuess, @gp, -100, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y); % optimize hyperparameters
+Y = theta(end,:)';
+hypGuess = struct('mean',[], 'cov', [log(2e1) log(2e1) log(mean(abs(Y)))], 'lik', log(1e-100));
+hypOpt = minimize(hypGuess, @gp, -500, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y); % optimize hyperparameters
 [mu, s2] = gp(hypOpt, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
 
 
@@ -54,8 +54,9 @@ surf(xpv,ypv,reshape(mu,21,[]))
 hold on
 plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
 
-Kss = feval(covfunc{:},hypOpt.cov,xTest);
+Kss = feval(covfunc{:},hypOpt.cov,[xTest(:,1) xTest(:,1)]);
 Ks = feval(covfunc{:},hypOpt.cov,xTraining,xTest);
+[ystar,deltay] = OptimizeMI2D(xTest,xTraining,hypOpt,covfunc);
 %% testing
 Ntest = 10;
 iEval = randi(grids,Ntest,2);% some random indices
@@ -78,12 +79,12 @@ plot3(xEval(:,1),xEval(:,2),eNormGP,'s','Markersize',15,'Linewidth',1.3);
 hold on
 plot3(xEval(:,1),xEval(:,2),eNormConstant,'^','Markersize',15,'Linewidth',1.3);
 set(gca,'Zscale','log');
-xlabel('Scheduling Variable $\rho_1$ [$mm$]');
-xlabel('Scheduling Variable $\rho_2$ [$mm$]');
+xlabel('Scheduling Variable $\rho_1$ [$m$]');
+xlabel('Scheduling Variable $\rho_2$ [$m$]');
 zlabel('$\|e\|_2$ [$m$]');
 legend('GP Snap Feefdorward','Position-Independent Feedforward');
 
 figure(4);clf;
-plot(t,eGP(:,8));
+plot(t,eGP(:,1));
 hold on
-plot(t,eConstant(:,8));
+plot(t,eConstant(:,1));
