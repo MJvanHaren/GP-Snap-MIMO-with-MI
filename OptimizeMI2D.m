@@ -1,4 +1,4 @@
-function [ystar,deltay] = OptimizeMI2D(xTest,xTraining,hyps,covfunc)
+function [ystar,deltay,I] = OptimizeMI2D(xTest,xTraining,hyps,covfunc)
 %% define/initialize
 Ntest = size(xTest,1);
 deltay = zeros(1,Ntest);

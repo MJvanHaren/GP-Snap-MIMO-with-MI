@@ -6,7 +6,8 @@ opts = DefBodeOpts;
 grids = 31; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
 Lx = 0.25;  % [m]
 Ly = 0.25;  % [m]
-n=5;        % [-] amount of training positions
+n=5;        % [-] amount of ini training positions
+n2 = 15;    % [-] amount of total training positions
 
 C = zeros(grids,grids,n);
 C(16,16,1) = 1;     % center
@@ -15,13 +16,15 @@ C(3,end-2,3) = 1;   % right upper corner
 C(end-2,3,4) = 1;   % left bottom corner
 C(end-2,end-2,5) = 1;   % right bottom corner
 
-for i = 1:size(C,3)
+for i = 1:n
     [row,col] = find(C(:,:,i));
     xTraining(i,:) = [-Lx+2*(col-1)/(grids-1)*Lx -Ly+2*(row-1)/(grids-1)*Ly];
 end
 
-xpv = -Lx:0.025:Lx;
-ypv = -Ly:0.025:Ly;
+% xpv = -Lx:0.025:Lx;
+% ypv = -Ly:0.025:Ly;
+xpv = linspace(-Lx,Lx,grids);
+ypv = linspace(-Ly,Ly,grids);
 [xv, yv] = meshgrid(xpv,ypv);
 xTest = [xv(:) yv(:)];
 
@@ -43,20 +46,28 @@ meanfunc = {@meanZero};
 covfunc = {@covSEard};
 likfunc = {@likGauss};
 
-Y = theta(end,:)';
-hypGuess = struct('mean',[], 'cov', [log(2e1) log(2e1) log(mean(abs(Y)))], 'lik', log(1e-100));
-hypOpt = minimize(hypGuess, @gp, -500, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y); % optimize hyperparameters
-[mu, s2] = gp(hypOpt, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
+hypOpt = struct('mean',[], 'cov', [log(2e1) log(2e1) log(mean(abs(theta(end,:))))], 'lik', log(1e-100));
+
+for i = n+1:n2
+    Y = theta(end,:)';
+
+    hypOpt = minimize(hypOpt, @gp, -500, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y); % optimize hyperparameters
+    [mu, s2] = gp(hypOpt, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
+    [xstar,deltay,~] = OptimizeMI2D(xTest,xTraining,hypOpt,covfunc);
+    xTraining(i,:) = xstar;
+    col = round((xstar(1)+Lx)/(2*Lx)*(grids-1)+1);
+    row = round((xstar(2)+Ly)/(2*Ly)*(grids-1)+1);
+    C(row,col,i) = 1;
+    [theta(:,i), e(:,i)] = ILCBF(squeeze(C(:,:,i)),grids,Ts,N_trial,theta0,r,Psi,t,Lx,Ly);
+end
 
 
+% Kss = feval(covfunc{:},hypOpt.cov,[xTest(:,1) xTest(:,1)]);
+% Ks = feval(covfunc{:},hypOpt.cov,xTraining,xTest);
 figure(2); clf;
-surf(xpv,ypv,reshape(mu,21,[]))
+surf(xpv,ypv,reshape(mu,grids,[]))
 hold on
 plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
-
-Kss = feval(covfunc{:},hypOpt.cov,[xTest(:,1) xTest(:,1)]);
-Ks = feval(covfunc{:},hypOpt.cov,xTraining,xTest);
-[ystar,deltay] = OptimizeMI2D(xTest,xTraining,hypOpt,covfunc);
 %% testing
 Ntest = 10;
 iEval = randi(grids,Ntest,2);% some random indices
