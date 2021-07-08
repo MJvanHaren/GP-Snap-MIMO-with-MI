@@ -3,26 +3,24 @@ SetPlotLatexStyle;
 opts = DefBodeOpts;
 [c1,c2,c3,c4,c5,c6,c7] = MatlabDefaultPlotColors;
 %%
-grids = 31; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
+grids = 19; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
 Lx = 0.25;  % [m]
 Ly = 0.25;  % [m]
 n=5;        % [-] amount of ini training positions
-n2 = 15;    % [-] amount of total training positions
+n2 = 12;     % [-] amount of total training positions
 
 C = zeros(grids,grids,n);
-C(16,16,1) = 1;     % center
-C(3,3,2) = 1;       % left upper corner
-C(3,end-2,3) = 1;   % right upper corner
-C(end-2,3,4) = 1;   % left bottom corner
-C(end-2,end-2,5) = 1;   % right bottom corner
+C(ceil(grids/2),ceil(grids/2),1) = 1;     % center
+C(2,2,2) = 1;       % left upper corner
+C(end-1,end-1,3) = 1;   % right upper corner
+C(end-1,2,4) = 1;   % left bottom corner
+C(2,end-1,5) = 1;   % right bottom corner
 
 for i = 1:n
     [row,col] = find(C(:,:,i));
     xTraining(i,:) = [-Lx+2*(col-1)/(grids-1)*Lx -Ly+2*(row-1)/(grids-1)*Ly];
 end
 
-% xpv = -Lx:0.025:Lx;
-% ypv = -Ly:0.025:Ly;
 xpv = linspace(-Lx,Lx,grids);
 ypv = linspace(-Ly,Ly,grids);
 [xv, yv] = meshgrid(xpv,ypv);
@@ -45,15 +43,29 @@ end
 meanfunc = {@meanZero};
 covfunc = {@covSEard};
 likfunc = {@likGauss};
-
-hypOpt = struct('mean',[], 'cov', [log(2e1) log(2e1) log(mean(abs(theta(end,:))))], 'lik', log(1e-100));
+hypOpt = struct('mean',[], 'cov', [log(1e1) log(1e1) log(mean(abs(theta(end,:))))], 'lik', log(1e-4*min(abs(theta(end,:)))));'lik', log(1e-10));
 
 for i = n+1:n2
     Y = theta(end,:)';
 
-    hypOpt = minimize(hypOpt, @gp, -500, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y); % optimize hyperparameters
-    [mu, s2] = gp(hypOpt, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
-    [xstar,deltay,~] = OptimizeMI2D(xTest,xTraining,hypOpt,covfunc);
+    hypOpt = minimize(hypOpt, @gp, -500, @infVB, meanfunc, covfunc, likfunc, xTraining, Y);
+    [mu, s2] = gp(hypOpt, @infVB, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
+    figure(2); clf;
+    subplot(121)
+    surf(xpv,ypv,reshape(mu,grids,[]))
+    hold on
+    Y = theta(end,:)';
+    plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
+    xlabel('x');
+    ylabel('y');
+    
+    
+    [xstar,deltay] = OptimizeMI2D(xTest,xTraining,hypOpt,covfunc);
+    subplot(122)
+    surf(xpv,ypv,reshape(deltay,grids,[])); hold on;
+    plot(xTraining(:,1),xTraining(:,2),'o','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2)
+    xlabel('x');
+    ylabel('y');
     xTraining(i,:) = xstar;
     col = round((xstar(1)+Lx)/(2*Lx)*(grids-1)+1);
     row = round((xstar(2)+Ly)/(2*Ly)*(grids-1)+1);
@@ -62,11 +74,10 @@ for i = n+1:n2
 end
 
 
-% Kss = feval(covfunc{:},hypOpt.cov,[xTest(:,1) xTest(:,1)]);
-% Ks = feval(covfunc{:},hypOpt.cov,xTraining,xTest);
 figure(2); clf;
 surf(xpv,ypv,reshape(mu,grids,[]))
 hold on
+Y = theta(end,:)';
 plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
 %% testing
 Ntest = 10;
