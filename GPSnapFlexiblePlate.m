@@ -41,18 +41,20 @@ for i = 1:n
 end
 %% GP
 meanfunc = {@meanZero};
-% covfunc = {@covSEard};
+covfunc = {@covSEard};
 covfunc = {@covProd,{{@covSEiso},{@covSEiso}}};
 likfunc = {@likGauss};
-hypOpt.cov = log([1e2 mean(abs(theta(end,:))) 1e2 mean(abs(theta(end,:)))]);
+% hypOpt.cov = log([2e1 2e1 -1e-3]);
 hypOpt.cov = log([2e1 1e-3 2e1 1e-3]);
 hypOpt.lik = log(1e-6*min(abs(theta(end,:))));
+
+infMethod = @infVB;
 
 for i = n+1:n2
     Y = theta(end,:)';
     
-    hypOpt = minimize(hypOpt, @gp, -500, @infVB, meanfunc, covfunc, likfunc, xTraining, Y);
-    [mu, s2] = gp(hypOpt, @infVB, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
+    hypOpt = minimize(hypOpt, @gp, -500, infMethod, meanfunc, covfunc, likfunc, xTraining, Y);
+    [mu, s2] = gp(hypOpt, infMethod, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
     figure(2); clf;
     subplot(121)
     surf(xpv,ypv,reshape(mu,grids,[]))
@@ -77,6 +79,7 @@ end
 
 %% model all ff parameters as function of position
 hypOpt(npsi,:) = hypOpt;
+hypGuess.cov = log([2e1 2e1 1e-3]);
 hypGuess.cov = log([2e1 1e-3 2e1 1e-3]);
 hypGuess.lik = log(1e-6*min(abs(theta(end,:))));
 hypOpt(1:3,:) = hypGuess;
@@ -84,7 +87,7 @@ figure(3); clf;
 
 for i = 1:npsi
     Y = theta(i,:)';
-    hypOpt(i,:) = minimize(hypOpt(i,:), @gp, -500, @infVB, meanfunc, covfunc, likfunc, xTraining, Y);
+    hypOpt(i,:) = minimize(hypOpt(i,:), @gp, -500, infMethod, meanfunc, covfunc, likfunc, xTraining, Y);
     [mu(:,i), ~] = gp(hypOpt(i,:), @infVB, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
     subplot(2,2,i);
     surf(xpv,ypv,reshape(mu(:,i),grids,[]))
@@ -95,14 +98,19 @@ for i = 1:npsi
 end
 
 %% testing
-Ntest = 10;
+Ntest = 25;
 iEval = randi(grids,Ntest,2);% some random indices
+xiEval = round(linspace(1,grids,5));
+yiEval = round(linspace(1,grids,5));
+[iEvalx,iEvaly] = meshgrid(xiEval,yiEval);
+iEval = [iEvalx(:) iEvaly(:)]; % grid
 xEval = -Lx+2*(iEval-1)./(grids-1).*[Lx Ly];
 Ctest = zeros(grids,grids,Ntest);
 
 for i = 1:npsi
     [thetaTest(i,:), ~] = gp(hypOpt(i,:), @infVB, meanfunc, covfunc, likfunc, xTraining, theta(i,:)', xEval);
 end
+% thetaTest(1:end-1,:) = repmat(theta(1:end-1,1),1,Ntest);
 
 for i = 1:Ntest
     Ctest(iEval(1),iEval(2),i) = 1;
@@ -113,9 +121,11 @@ for i = 1:Ntest
 end
 %% visualization
 figure(4);clf;
-plot3(xEval(:,1),xEval(:,2),eNormGP,'s','Markersize',15,'Linewidth',1.3);
+surf(-Lx+2*(xiEval-1)./(grids-1).*Lx,-Ly+2*(yiEval-1)./(grids-1).*Ly,reshape(eNormGP,5,[]));
+% plot3(xEval(:,1),xEval(:,2),eNormGP,'s','Markersize',15,'Linewidth',1.3);
 hold on
-plot3(xEval(:,1),xEval(:,2),eNormConstant,'^','Markersize',15,'Linewidth',1.3);
+surf(-Lx+2*(xiEval-1)./(grids-1).*Lx,-Ly+2*(yiEval-1)./(grids-1).*Ly,reshape(eNormConstant,5,[]));
+% plot3(xEval(:,1),xEval(:,2),eNormConstant,'^','Markersize',15,'Linewidth',1.3);
 set(gca,'Zscale','log');
 xlabel('Scheduling Variable $\rho_1$ [$m$]');
 xlabel('Scheduling Variable $\rho_2$ [$m$]');
