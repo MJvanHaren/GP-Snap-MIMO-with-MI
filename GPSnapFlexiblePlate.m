@@ -10,12 +10,12 @@ Ly = 0.25;  % [m]
 C = zeros(grids,grids,1);
 C(ceil(grids/2),ceil(grids/2),1) = 1;     % center
 % C(2,2,2) = 1;       % left upper corner
-% C(end-1,end-1,1) = 1;   % right upper corner
-% C(end-1,2,2) = 1;   % left bottom corner
-% C(2,end-1,3) = 1;   % right bottom corner
+% C(end-1,end-1,3) = 1;   % right upper corner
+% C(end-1,2,4) = 1;   % left bottom corner
+% C(2,end-1,5) = 1;   % right bottom corner
 
 n = size(C,3);  % [-] amount of ini training positions 
-n2 = n+4;       % [-] amount of total training positions
+n2 = n+6;       % [-] amount of total training positions
 
 for i = 1:n
     [row,col] = find(C(:,:,i));
@@ -48,7 +48,7 @@ likfunc = {@likGauss};
 
 
 hypGuess.cov = log([1e2 sqrt(1e-3) 1e2 sqrt(1e-3);
-                    5e0 sqrt(1e0)  5e0 sqrt(1e0) ;
+                    5e0 sqrt(5e-2)  5e0 sqrt(5e-2) ;
                     1e2 sqrt(1e-3) 1e2 sqrt(1e-3)
                     5e0 sqrt(1e-5) 5e0 sqrt(1e-5)]);
 hypGuess.lik = log(1e-6*min(abs(theta),[],2));
@@ -70,16 +70,15 @@ for i = n+1:n2
     surf(xpv,ypv,reshape(mu,grids,[]))
     hold on
     plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
-    xlabel('x');
-    ylabel('y');
+    xlabel('x [m]');ylabel('y [m]');zlabel('Snap Parameter [$kg/s^2$]')
     
     
     [xstar,deltay] = OptimizeMI2D(xTest,xTraining,hypOpt,covfunc);
     subplot(122)
     surf(xpv,ypv,reshape(deltay,grids,[])); hold on;
     plot(xTraining(:,1),xTraining(:,2),'o','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2)
-    xlabel('x');
-    ylabel('y');
+    xlabel('x [m]');ylabel('y [m]'); zlabel('$\delta$ in mutual information');
+    zlim([0 3e5]); set(gca,'zscale','log');
     xTraining(i,:) = xstar;
     col = round((xstar(1)+Lx)/(2*Lx)*(grids-1)+1);
     row = round((xstar(2)+Ly)/(2*Ly)*(grids-1)+1);
@@ -99,13 +98,12 @@ figure(3); clf;
 for i = 1:npsi
     Y = theta(i,:)';
     hypOpt(i,:) = minimize(hypOpt(i,:), @gp, -500, infMethod, meanfunc, covfunc, likfunc, xTraining, Y);
-    [mu(:,i), ~] = gp(hypOpt(i,:), @infVB, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
+    [mu(:,i), ~] = gp(hypOpt(i,:), infMethod, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
     subplot(2,2,i);
     surf(xpv,ypv,reshape(mu(:,i),grids,[]))
     hold on
     plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
-    xlabel('x [m]');
-    ylabel('y [m]');
+    xlabel('x [m]');ylabel('y [m]');zlabel('Snap Parameter [$kg/s^2$]');
 end
 
 %% testing
@@ -132,13 +130,11 @@ end
 %% visualization
 figure(4);clf;
 surf(-Lx+2*(xiEval-1)./(grids-1).*Lx,-Ly+2*(yiEval-1)./(grids-1).*Ly,reshape(eNormGP,5,[]));
-% plot3(xEval(:,1),xEval(:,2),eNormGP,'s','Markersize',15,'Linewidth',1.3);
 hold on
 surf(-Lx+2*(xiEval-1)./(grids-1).*Lx,-Ly+2*(yiEval-1)./(grids-1).*Ly,reshape(eNormConstant,5,[]));
-% plot3(xEval(:,1),xEval(:,2),eNormConstant,'^','Markersize',15,'Linewidth',1.3);
 set(gca,'Zscale','log');
-xlabel('Scheduling Variable $\rho_1$ [$m$]');
-xlabel('Scheduling Variable $\rho_2$ [$m$]');
+xlabel('Scheduling Variable $x$ [$m$]');
+xlabel('Scheduling Variable $y$ [$m$]');
 zlabel('$\|e\|_2$ [$m$]');
 legend('GP Snap Feefdorward','Position-Independent Feedforward');
 
