@@ -44,9 +44,16 @@ meanfunc = {@meanZero};
 covfunc = {@covSEard};
 covfunc = {@covProd,{{@covSEiso},{@covSEiso}}};
 likfunc = {@likGauss};
-% hypOpt.cov = log([2e1 2e1 -1e-3]);
-hypOpt.cov = log([2e1 1e-3 2e1 1e-3]);
-hypOpt.lik = log(1e-6*min(abs(theta(end,:))));
+
+% hypGuess.cov = log([2e1 2e1 1e-3]); %sick goed?
+hypGuess.cov = log([2e0 sqrt(1e-3) 2e0 sqrt(1e-3);
+                    5e1 sqrt(1e0)  5e1 sqrt(1e0) ;
+                    1e0 sqrt(1e-3) 1e0 sqrt(1e-3)
+                    5e0 sqrt(1e-5) 5e0 sqrt(1e-5)]);
+hypGuess.lik = log(1e-6*min(abs(theta),[],2));
+
+hypOpt.cov = hypGuess.cov(end,:);
+hypOpt.lik = hypGuess.lik(end);
 
 infMethod = @infVB;
 
@@ -79,10 +86,10 @@ end
 
 %% model all ff parameters as function of position
 hypOpt(npsi,:) = hypOpt;
-hypGuess.cov = log([2e1 2e1 1e-3]);
-hypGuess.cov = log([2e1 1e-3 2e1 1e-3]);
-hypGuess.lik = log(1e-6*min(abs(theta(end,:))));
-hypOpt(1:3,:) = hypGuess;
+for i = 1:npsi-1
+    hypOpt(i,:).cov = hypGuess.cov(i,:);
+    hypOpt(i).lik = hypGuess.lik(i);
+end
 figure(3); clf;
 
 for i = 1:npsi
