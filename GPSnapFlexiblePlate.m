@@ -7,7 +7,7 @@ grids = 19; % square gridded (grids * grids) (so grid sizes can be non-equidista
 Lx = 0.25;  % [m]
 Ly = 0.25;  % [m]
 n=5;        % [-] amount of ini training positions
-n2 = 12;     % [-] amount of total training positions
+n2 = 7;     % [-] amount of total training positions
 
 C = zeros(grids,grids,n);
 C(ceil(grids/2),ceil(grids/2),1) = 1;     % center
@@ -41,20 +41,22 @@ for i = 1:n
 end
 %% GP
 meanfunc = {@meanZero};
-covfunc = {@covSEard};
+% covfunc = {@covSEard};
+covfunc = {@covProd,{{@covSEiso},{@covSEiso}}};
 likfunc = {@likGauss};
-hypOpt = struct('mean',[], 'cov', [log(1e1) log(1e1) log(mean(abs(theta(end,:))))], 'lik', log(1e-4*min(abs(theta(end,:)))));'lik', log(1e-10));
+hypOpt.cov = log([1e2 mean(abs(theta(end,:))) 1e2 mean(abs(theta(end,:)))]);
+hypOpt.cov = log([2e1 1e-3 2e1 1e-3]);
+hypOpt.lik = log(1e-6*min(abs(theta(end,:))));
 
 for i = n+1:n2
     Y = theta(end,:)';
-
+    
     hypOpt = minimize(hypOpt, @gp, -500, @infVB, meanfunc, covfunc, likfunc, xTraining, Y);
     [mu, s2] = gp(hypOpt, @infVB, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
     figure(2); clf;
     subplot(121)
     surf(xpv,ypv,reshape(mu,grids,[]))
     hold on
-    Y = theta(end,:)';
     plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
     xlabel('x');
     ylabel('y');
@@ -73,20 +75,34 @@ for i = n+1:n2
     [theta(:,i), e(:,i)] = ILCBF(squeeze(C(:,:,i)),grids,Ts,N_trial,theta0,r,Psi,t,Lx,Ly);
 end
 
+%% model all ff parameters as function of position
+hypOpt(npsi,:) = hypOpt;
+hypGuess.cov = log([2e1 1e-3 2e1 1e-3]);
+hypGuess.lik = log(1e-6*min(abs(theta(end,:))));
+hypOpt(1:3,:) = hypGuess;
+figure(3); clf;
 
-figure(2); clf;
-surf(xpv,ypv,reshape(mu,grids,[]))
-hold on
-Y = theta(end,:)';
-plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
+for i = 1:npsi
+    Y = theta(i,:)';
+    hypOpt(i,:) = minimize(hypOpt(i,:), @gp, -500, @infVB, meanfunc, covfunc, likfunc, xTraining, Y);
+    [mu(:,i), ~] = gp(hypOpt(i,:), @infVB, meanfunc, covfunc, likfunc, xTraining, Y, xTest);
+    subplot(2,2,i);
+    surf(xpv,ypv,reshape(mu(:,i),grids,[]))
+    hold on
+    plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
+    xlabel('x [m]');
+    ylabel('y [m]');
+end
+
 %% testing
 Ntest = 10;
 iEval = randi(grids,Ntest,2);% some random indices
 xEval = -Lx+2*(iEval-1)./(grids-1).*[Lx Ly];
 Ctest = zeros(grids,grids,Ntest);
 
-[thetaSnapTest, ~] = gp(hypOpt, @infGaussLik, meanfunc, covfunc, likfunc, xTraining, Y, xEval);
-thetaTest = [repmat(theta(1:end-1,1),1,Ntest);thetaSnapTest'];
+for i = 1:npsi
+    [thetaTest(i,:), ~] = gp(hypOpt(i,:), @infVB, meanfunc, covfunc, likfunc, xTraining, theta(i,:)', xEval);
+end
 
 for i = 1:Ntest
     Ctest(iEval(1),iEval(2),i) = 1;
@@ -96,7 +112,7 @@ for i = 1:Ntest
     eNormConstant(i) = norm(eConstant(:,i),2);
 end
 %% visualization
-figure(3);clf;
+figure(4);clf;
 plot3(xEval(:,1),xEval(:,2),eNormGP,'s','Markersize',15,'Linewidth',1.3);
 hold on
 plot3(xEval(:,1),xEval(:,2),eNormConstant,'^','Markersize',15,'Linewidth',1.3);
@@ -106,7 +122,7 @@ xlabel('Scheduling Variable $\rho_2$ [$m$]');
 zlabel('$\|e\|_2$ [$m$]');
 legend('GP Snap Feefdorward','Position-Independent Feedforward');
 
-figure(4);clf;
+figure(5);clf;
 plot(t,eGP(:,1));
 hold on
 plot(t,eConstant(:,1));
