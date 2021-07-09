@@ -2,22 +2,22 @@ function [ystar,deltay] = OptimizeMI2D(xTest,xTraining,hyps,covfunc)
 %% define/initialize
 Ntest = size(xTest,1);
 deltay = zeros(1,Ntest);
-A = unique(xTraining,'rows'); 
+A = unique(xTraining,'rows','stable'); 
 delta = 1e-6;
 %% calculations
 
 KAA = feval(covfunc{:},hyps.cov,xTraining);
-KAAplus = KAA+delta*mean(mean(KAA))*eye(length(A));
+KAAplus = KAA+delta*mean(mean(KAA))*eye(length(KAA));
 
 for j = 1:Ntest
-    Ab = setdiff(xTest,union(A,xTest(j,:),'rows'),'rows'); 
+    Ab = setdiff(xTest,union(A,xTest(j,:),'rows','stable'),'rows','stable'); 
     
     KyAb = feval(covfunc{:},hyps.cov,xTest(j,:),Ab);
     KyA = feval(covfunc{:},hyps.cov,xTest(j,:),A);
     Kyy = feval(covfunc{:},hyps.cov,xTest(j,:));
     
     KAbAb = feval(covfunc{:},hyps.cov,Ab);
-    KAbAbplus = KAbAb+delta*mean(mean(KAbAb))*eye(length(Ab));
+    KAbAbplus = KAbAb+delta*mean(mean(KAbAb))*eye(length(KAbAb));
 
     deltay(j) = (Kyy-KyA/KAAplus*KyA')/(Kyy-KyAb/KAbAbplus*KyAb');
 end

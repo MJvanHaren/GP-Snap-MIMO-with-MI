@@ -6,15 +6,16 @@ opts = DefBodeOpts;
 grids = 19; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
 Lx = 0.25;  % [m]
 Ly = 0.25;  % [m]
-n=5;        % [-] amount of ini training positions
-n2 = 7;     % [-] amount of total training positions
 
-C = zeros(grids,grids,n);
+C = zeros(grids,grids,1);
 C(ceil(grids/2),ceil(grids/2),1) = 1;     % center
-C(2,2,2) = 1;       % left upper corner
-C(end-1,end-1,3) = 1;   % right upper corner
-C(end-1,2,4) = 1;   % left bottom corner
-C(2,end-1,5) = 1;   % right bottom corner
+% C(2,2,2) = 1;       % left upper corner
+% C(end-1,end-1,1) = 1;   % right upper corner
+% C(end-1,2,2) = 1;   % left bottom corner
+% C(2,end-1,3) = 1;   % right bottom corner
+
+n = size(C,3);  % [-] amount of ini training positions 
+n2 = n+4;       % [-] amount of total training positions
 
 for i = 1:n
     [row,col] = find(C(:,:,i));
@@ -40,20 +41,22 @@ for i = 1:n
     [theta(:,i), e(:,i)] = ILCBF(squeeze(C(:,:,i)),grids,Ts,N_trial,theta0,r,Psi,t,Lx,Ly);
 end
 %% GP
-meanfunc = {@meanZero};
-covfunc = {@covSEard};
+meanfunc = {@meanConst};
+% covfunc = {@covSEard};
 covfunc = {@covProd,{{@covSEiso},{@covSEiso}}};
 likfunc = {@likGauss};
 
-% hypGuess.cov = log([2e1 2e1 1e-3]); %sick goed?
-hypGuess.cov = log([2e0 sqrt(1e-3) 2e0 sqrt(1e-3);
-                    5e1 sqrt(1e0)  5e1 sqrt(1e0) ;
-                    1e0 sqrt(1e-3) 1e0 sqrt(1e-3)
+
+hypGuess.cov = log([1e2 sqrt(1e-3) 1e2 sqrt(1e-3);
+                    5e0 sqrt(1e0)  5e0 sqrt(1e0) ;
+                    1e2 sqrt(1e-3) 1e2 sqrt(1e-3)
                     5e0 sqrt(1e-5) 5e0 sqrt(1e-5)]);
 hypGuess.lik = log(1e-6*min(abs(theta),[],2));
+hypGuess.mean = mean(theta,2);
 
 hypOpt.cov = hypGuess.cov(end,:);
 hypOpt.lik = hypGuess.lik(end);
+hypOpt.mean = hypGuess.mean(end);
 
 infMethod = @infVB;
 
@@ -89,6 +92,7 @@ hypOpt(npsi,:) = hypOpt;
 for i = 1:npsi-1
     hypOpt(i,:).cov = hypGuess.cov(i,:);
     hypOpt(i).lik = hypGuess.lik(i);
+    hypOpt(i).mean = hypGuess.mean(i);
 end
 figure(3); clf;
 
@@ -106,11 +110,10 @@ end
 
 %% testing
 Ntest = 25;
-iEval = randi(grids,Ntest,2);% some random indices
 xiEval = round(linspace(1,grids,5));
 yiEval = round(linspace(1,grids,5));
 [iEvalx,iEvaly] = meshgrid(xiEval,yiEval);
-iEval = [iEvalx(:) iEvaly(:)]; % grid
+iEval = [iEvalx(:) iEvaly(:)]; 
 xEval = -Lx+2*(iEval-1)./(grids-1).*[Lx Ly];
 Ctest = zeros(grids,grids,Ntest);
 
