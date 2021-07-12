@@ -3,7 +3,7 @@ SetPlotLatexStyle;
 opts = DefBodeOpts;
 [c1,c2,c3,c4,c5,c6,c7] = MatlabDefaultPlotColors;
 %%
-grids = 19; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
+grids = 17; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
 Lx = 0.25;  % [m]
 Ly = 0.25;  % [m]
 

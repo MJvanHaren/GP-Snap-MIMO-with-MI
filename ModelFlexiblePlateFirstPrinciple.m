@@ -74,6 +74,31 @@ else
     wn = [omegamnkl2(3,1,1,3,1) omega(4,4) omegamnkl2(5,3,3,5,1)];
 end
 
+if false % plot mode shapes
+    figure
+    for i = 1:3
+    [xv,yv] = meshgrid(linspace(-a,a,grids),linspace(-a,a,grids));
+    thickness = 0.25/20;
+    z = reshape(Xnx(:,i),grids,[])/20;
+    c = z;
+    % top & bottom faces
+    subplot(1,3,i)
+    surf(xv,yv,z+thickness,c,'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud')
+    hold on;
+    surf(xv,yv,z-thickness,c,'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud')
+    % Now the 4 sides
+    surf([xv(1,:); xv(1,:)],[yv(1,:); yv(1,:)], ...
+            [z(1,:)+thickness; z(1,:)-thickness],[c(1,:); c(1,:)],'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud')
+    surf([xv(end,:); xv(end,:)],[yv(end,:); yv(end,:)], ...
+            [z(end,:)+thickness; z(end,:)-thickness],[c(end,:); c(end,:)],'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud')
+    surf([xv(:,1), xv(:,1)],[yv(:,1), yv(:,1)], ...
+            [z(:,1)+thickness, z(:,1)-thickness],[c(:,1), c(:,1)],'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud')
+    surf([xv(:,end), xv(:,end)],[yv(:,end), yv(:,end)], ...
+            [z(:,end)+thickness, z(:,end)-thickness],[c(:,end), c(:,end)],'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud');
+    axis equal; grid off; axis off
+    end
+end
+
 Phi = [ones(no,1)/sqrt(no) Xnx./sqrt(sum(Xnx.^2))];
 
 fn = wn/2/pi;
