@@ -1,5 +1,5 @@
 function [G,fn] = ModelFlexiblePlateFirstPrinciple(Cmatrix,grids,a,b)
-%% prperties
+%% porperties
                                                     
 E = 2.1e11;                                                                
 rho = 7850;                                                                  
@@ -111,18 +111,14 @@ Cm = C*Phi;
 
 %% iterating over modes and positions to determine Gy and Gz
 s = tf('s');
-if false %MISO
-    G(1,1)=1/(mass*s^2);
-    G(1,2)=1/(mass*s^2);
-    G(1,3)=1/(mass*s^2);
-    G(1,4)=1/(mass*s^2);
-else
-    G=1/(mass*s^2);
-end
+G(1,1)=1/(mass*s^2);
 
 n = length(Cm);
 zeta = [0.1 0.12 0.12 0.3];
 for r = 2:n
-    G = G+(Cm(:,r)*Bm(r,:))/(s^2+2*zeta(r-1)*wn(r-1)*s+wn(r-1)^2);
+    G(1,1) = G(1,1)+(Cm(:,r)*Bm(r,:))/(s^2+2*zeta(r-1)*wn(r-1)*s+wn(r-1)^2);
 end
+
+G(2,2) = 1/(mass*s^2);
+G(3,3) = 1/(mass*s^2);
 end
