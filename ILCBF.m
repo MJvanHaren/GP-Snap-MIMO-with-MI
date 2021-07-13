@@ -1,4 +1,4 @@
-function [theta_jplus1,e_j] = ILCBF(POI,grids,Ts,N_trial,theta0,r,Psi,t,a,b)
+function [theta_jplus1,e_j] = ILCBF(POI,grids,Ts,N_trial,theta0,r,Psi,t,a,b,x0)
 if ishandle(1)
     close(1);
 end
