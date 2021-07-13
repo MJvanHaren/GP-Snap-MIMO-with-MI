@@ -3,7 +3,7 @@ SetPlotLatexStyle;
 opts = DefBodeOpts;
 [c1,c2,c3,c4,c5,c6,c7] = MatlabDefaultPlotColors;
 %%
-grids = 17; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
+grids = 21; % square gridded (grids * grids) (so grid sizes can be non-equidistant)
 Lx = 0.25;  % [m]
 Ly = 0.25;  % [m]
 
@@ -29,7 +29,7 @@ xTest = [xv(:) yv(:)];
 
 %%
 Ts = 1e-3;
-N_trial = 8;
+N_trial = 4;
 [ty,ddy] = make4(5e-4,1e-3,1e-2,2.5e-1,2e1,Ts); % good choice: 5e-4,1e-3,1e-2,2.5e-1,2e1
 [~,t,s,j,a,v,r1,~] = profile4(ty,ddy(1),Ts);
 Psi = [v a j s];
@@ -46,14 +46,13 @@ for i = 1:n
 end
 %% GP
 meanfunc = {@meanConst};
-% covfunc = {@covSEard};
 covfunc = {
     {@covProd,{{@covSEiso},{@covSEiso}}};
     {@covProd,{{@covSEiso},{@covSEiso}}};
     {@covProd,{{@covSEiso},{@covSEiso}}};
     {@covProd,{{@covSEiso},{@covSEiso}}};
-    {@covProd,{{@covPERiso,{@covSEiso}},{@covSEiso}}};
-    {@covProd,{{@covSEiso},{@covPERiso,{@covSEiso}}}}
+    {@covSum,{{@covPERiso,{@covSEiso}},{@covConst}}};
+    {@covProd,{{@covConst},{@covPERiso,{@covSEiso}}}}
     };
 likfunc = {@likGauss};
 
@@ -62,8 +61,8 @@ hypGuess(1).cov = log([1e2 sqrt(1e-3) 1e2 sqrt(1e-3)]);
 hypGuess(2).cov = log([1e0 sqrt(5e-2)  1e0 sqrt(5e-2)]);
 hypGuess(3).cov = log([1e2 sqrt(1e-3) 1e2 sqrt(1e-3)]);
 hypGuess(4).cov = log([5e0 sqrt(1e-5) 5e0 sqrt(1e-5)]); % snap
-hypGuess(5).cov = log([0.25 2e2 sqrt(5e-2) 2e2 sqrt(5e-2)]);
-hypGuess(6).cov = log([2e2 sqrt(5e-2) 0.25 2e2 sqrt(5e-2)]);
+hypGuess(5).cov = log([0.1667 2e2 sqrt(5e-2) sqrt(5e-2)]);
+hypGuess(6).cov = log([sqrt(5e-2) 0.1667 2e2 sqrt(5e-2)]);
 
 for i = 1:npsi
     hypGuess(i).lik = log(1e-6*min(abs(theta(i,:)),[],2));
@@ -112,6 +111,7 @@ figure(3); clf;
 for i = 1:npsi
     Y = theta(i,:)';
     hypOpt(i,:) = minimize(hypOpt(i,:), @gp, -500, infMethod, meanfunc, covfunc{i,:}, likfunc, xTraining, Y);
+    hypOpt(5).cov = hypGuess(5).cov;
     [mu(:,i), ~] = gp(hypOpt(i,:), infMethod, meanfunc, covfunc{i,:}, likfunc, xTraining, Y, xTest);
     subplot(2,3,i);
     surf(xpv,ypv,reshape(mu(:,i),grids,[]))
@@ -119,6 +119,7 @@ for i = 1:npsi
     plot3(xTraining(:,1),xTraining(:,2),Y,'^','MarkerSize',15,'MarkerFaceColor',c2,'MarkerEdgeColor',c2);
     xlabel('x [m]');ylabel('y [m]');zlabel('Snap Parameter [$kg/s^2$]');
 end
+
 
 %% testing
 Ntest = 4^2;
