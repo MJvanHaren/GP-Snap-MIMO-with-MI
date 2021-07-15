@@ -5,34 +5,45 @@ end
 %% inputs
 N = length(t);
 Tend = t(end);
-dirs = size(r,2);
+n_o = size(r,2);
+n_i = 6;
 
 
 %% system
 G = ss(ModelFlexiblePlateFirstPrinciple(POI,grids,a,b)); % model for simulation
 
-load controller1
+load controller11
 sys(1,1) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
-controller(1,1) = d2d(ss(shapeit_data.C_tf_z),Ts);
+controller(1,1) = d2d(tf(shapeit_data.C_tf_z),Ts);
+load controller12
+sys(1,2) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
+controller(2,1) = d2d(tf(shapeit_data.C_tf_z),Ts);
+load controller13
+sys(1,3) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
+controller(3,1) = d2d(tf(shapeit_data.C_tf_z),Ts);
+load controller14
+sys(1,4) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
+controller(4,1) = d2d(tf(shapeit_data.C_tf_z),Ts);
+
 load controller2
-sys(2,2) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
-controller(2,2) = d2d(ss(shapeit_data.C_tf_z),Ts);
+sys(2,end+1) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
+controller(end+1,2) = d2d(tf(shapeit_data.C_tf_z),Ts);
 load controller3
-sys(3,3) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
-controller(3,3) = d2d(ss(shapeit_data.C_tf_z),Ts);
+sys(3,end+1) = c2d(shapeit_data.P.sys,Ts); % model for ILCBF
+controller(end+1,3) = d2d(tf(shapeit_data.C_tf_z),Ts);
 
 PS = feedback(sys,controller,-1);
 %% weighting
-We          = eye(dirs*N)*1e6;
-Wf          = eye(dirs*N)*0e3;
-WDf         = eye(dirs*N)*0e-1;
+We          = eye(n_o*N)*1e6;
+Wf          = eye(n_i*N)*1e-6;
+WDf         = eye(n_i*N)*0e-1;
 %% BF
 
 npsi = size(Psi,2);
-JPsi = zeros(dirs*N,npsi);
+JPsi = zeros(n_o*N,npsi);
 
 for iBF = 1:npsi
-    JPsi(:,iBF) = reshape(lsim(PS,reshape(Psi(:,iBF),N,dirs)),dirs*N,1);
+    JPsi(:,iBF) = reshape(lsim(PS,reshape(Psi(:,iBF),N,n_i)),[],1);
 end
 R = JPsi.'*We*JPsi+Psi.'*(Wf+WDf)*Psi;
 Rinv = eye(size(R,2))/R;
@@ -42,15 +53,15 @@ L = Rinv*(JPsi.'*We);
 
 %% init ILC with BF
 theta_jplus1 = theta0;
-f_jplus1 = reshape(Psi*theta_jplus1,N,dirs);
+f_jplus1 = reshape(Psi*theta_jplus1,N,n_i);
 %% initialize storage andplotting for ILC
 
 % Initialize storage variables.
-history.f           = NaN(N,dirs,N_trial);
-history.u           = NaN(N,dirs,N_trial);
-history.e           = NaN(N,dirs,N_trial);
-history.eNorm       = NaN(dirs,N_trial);
-history.eInfNorm    = NaN(dirs,N_trial);
+history.f           = NaN(N,n_i,N_trial);
+history.u           = NaN(N,n_i,N_trial);
+history.e           = NaN(N,n_o,N_trial);
+history.eNorm       = NaN(n_o,N_trial);
+history.eInfNorm    = NaN(n_o,N_trial);
 history.theta_j     = NaN(npsi,N_trial);
 
 PlotTrialDataMIMO;
@@ -61,15 +72,15 @@ for trial = 1:N_trial
     out = sim('flexibleBeamILCBF','SrcWorkspace','current');
     
     % load simulation data:
-    u_j = out.simout(:,1:dirs);
+    u_j = out.simout(:,1:n_i);
     
-    e_j = out.simout(:,dirs+1:end);
+    e_j = out.simout(:,n_i+1:end);
     
     % Store trial data.
     history.f(:,:,trial)          = f_j;
     history.u(:,:,trial)          = u_j;
     history.e(:,:,trial)          = e_j;
-    for i = 1:dirs
+    for i = 1:n_o
         history.eNorm(i,trial)        = norm(e_j(:,i),2);
         history.eInfNorm(i,trial)     = norm(e_j(:,i),Inf);
     end
@@ -77,8 +88,8 @@ for trial = 1:N_trial
     
     PlotTrialDataMIMO;
     
-    theta_jplus1 = (Q*theta_j(:,trial)+L*reshape(e_j,dirs*N,[]));
-    f_jplus1 = reshape(Psi*theta_jplus1,N,dirs);
+    theta_jplus1 = (Q*theta_j(:,trial)+L*reshape(e_j,n_o*N,[]));
+    f_jplus1 = reshape(Psi*theta_jplus1,N,n_i);
 end
 if false
    figure(2);clf;

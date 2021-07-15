@@ -58,13 +58,13 @@ omega = sqrt(abs(omega2));
 %% bode calcs with Wodek
 
 no = grids^2;
-if false %MISO
+if true %MISO
     B = [[1;zeros(no-1,1)] [zeros(grids-1,1);1;zeros(no-grids,1)] [zeros(no-grids,1);1;zeros(grids-1,1)] [zeros(no-1,1);1]];
-    Xnx(:,1) = reshape(Xm(:,2)*Yn(:,2)',[],1);
-    Xnx(:,2) = reshape(Xm(:,2)*Yn(:,3)',[],1);
-    Xnx(:,3) = reshape(Xm(:,3)*Yn(:,2)',[],1);
+    Xnx(:,1) = reshape(Xm(:,3)*Yn(:,1)'-Xm(:,1)*Yn(:,3)',[],1);
+    Xnx(:,2) = reshape(Xm(:,3)*Yn(:,1)'+Xm(:,1)*Yn(:,3)',[],1);
+    Xnx(:,3) = reshape(Xm(:,2)*Yn(:,2)',[],1);
     Xnx(:,4) = reshape(Xm(:,3)*Yn(:,3)',[],1);
-    wn = [omega(3,3) omega(3,4) omega(4,3) omega(4,4)]; 
+    wn = [omegamnkl2(3,1,1,3,-1) omegamnkl2(3,1,1,3,1) omega(3,3) omega(4,4)]; 
 else
     Bmatrix = [1 zeros(1,grids-2) 1;zeros(grids-2,grids);1 zeros(1,grids-2) 1];
     B = Bmatrix(:);
@@ -76,13 +76,13 @@ end
 
 if false % plot mode shapes
     figure
-    for i = 1:3
+    for i = 1:size(Xnx,2)
     [xv,yv] = meshgrid(linspace(-a,a,grids),linspace(-a,a,grids));
     thickness = 0.25/20;
     z = reshape(Xnx(:,i),grids,[])/20;
     c = z;
     % top & bottom faces
-    subplot(1,3,i)
+    subplot(2,2,i)
     surf(xv,yv,z+thickness,c,'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud')
     hold on;
     surf(xv,yv,z-thickness,c,'edgecolor',[0 0 0],'facecolor','interp','FaceLighting','gouraud')
@@ -111,14 +111,14 @@ Cm = C*Phi;
 
 %% iterating over modes and positions to determine Gy and Gz
 s = tf('s');
-G(1,1)=1/(mass*s^2);
+G(1:size(C,1),1:size(B,2))=(1/size(B,2))/(mass*s^2); %FIX
 
 n = length(Cm);
-zeta = [0.1 0.12 0.12 0.3];
+zeta = [0.05 0.06 0.06 0.15];
 for r = 2:n
-    G(1,1) = G(1,1)+(Cm(:,r)*Bm(r,:))/(s^2+2*zeta(r-1)*wn(r-1)*s+wn(r-1)^2);
+    G(1:size(C,1),1:size(B,2)) = G(1:size(C,1),1:size(B,2))+(Cm(:,r)*Bm(r,:))/(s^2+2*zeta(r-1)*wn(r-1)*s+wn(r-1)^2);
 end
 
-G(2,2) = 1/(mass*s^2);
-G(3,3) = 1/(mass*s^2);
+G(2,end+1) = 1/(mass*s^2);
+G(3,end+1) = 1/(mass*s^2);
 end
